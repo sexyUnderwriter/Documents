@@ -1,0 +1,7 @@
+# Ignore everything by default
+*
+
+# But track these files
+!.gitignore
+!12tone.py
+!12tone.py.bak.*
