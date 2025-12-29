@@ -750,12 +750,81 @@ def _format_duration_seconds(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
+def export_tonal_cube_slice_heatmap(
+    matrix: np.ndarray,
+    out_path: str,
+    *,
+    z_depth: int = 0,
+    title: str | None = None,
+    label_mode: str = "numbers",
+) -> None:
+    """Export a 12x12 tonal-cube slice heatmap as a PNG.
+
+    This is essentially the 12-tone matrix with an optional Z-depth offset:
+    (matrix + z_depth) % 12.
+    """
+    if not isinstance(matrix, np.ndarray):
+        raise TypeError("matrix must be a numpy.ndarray")
+    if matrix.shape != (12, 12):
+        raise ValueError("--export-heatmap requires a 12x12 matrix")
+
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+    except Exception:
+        raise RuntimeError(
+            "Missing dependency for --export-heatmap. Install with: pip install matplotlib seaborn"
+        )
+
+    z_depth = int(z_depth)
+    data = (matrix.astype(int) + z_depth) % 12
+
+    plt.figure(figsize=(10, 8))
+
+    if label_mode == "pitches":
+        pitch_names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
+        annot = np.vectorize(lambda x: pitch_names[int(x) % 12])(data)
+        sns.heatmap(
+            data,
+            annot=annot,
+            fmt="s",
+            cmap="hsv",
+            cbar=True,
+            linewidths=1,
+            linecolor="black",
+            square=True,
+        )
+    else:
+        sns.heatmap(
+            data,
+            annot=True,
+            fmt="d",
+            cmap="hsv",
+            cbar=True,
+            linewidths=1,
+            linecolor="black",
+            square=True,
+        )
+
+    if title is None:
+        title = ""
+    plt.title(str(title))
+    plt.xlabel("Prime Axis (X)")
+    plt.ylabel("Inversion Axis (Y)")
+
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+
 def _best_only_worker(payload):
     """Worker for multiprocessing best-only search.
 
     Returns a list of (score, seed_int, consonance_summary).
     """
-    n, top_k, wrap, allow_inversions, throttle_every, throttle_ms, heartbeat_seconds, worker_id, progress_enabled = payload
+    n, top_k, wrap, allow_inversions, throttle_every, throttle_ms, heartbeat_seconds, worker_id, progress_enabled, updates_queue = payload
     import secrets as _secrets
     import time as _time
     import sys as _sys
@@ -772,6 +841,8 @@ def _best_only_worker(payload):
     last_beat = t0
     best_score = None
 
+    updates_queue = updates_queue
+
     for i in range(int(n)):
         seed_int = _secrets.randbits(63)
         _, c = _evaluate_random_seed(seed_int, wrap=wrap, allow_inversions=allow_inversions)
@@ -781,11 +852,23 @@ def _best_only_worker(payload):
         if best_score is None or score > best_score:
             best_score = score
 
+        heap_changed = False
         if len(heap) < int(top_k):
             heapq.heappush(heap, item)
+            heap_changed = True
         else:
             if item[0] > heap[0][0] or (item[0] == heap[0][0] and item[1] > heap[0][1]):
                 heapq.heapreplace(heap, item)
+                heap_changed = True
+
+        # Stream candidate updates to the parent so it can maintain a global top-K and optionally
+        # snapshot the current winners to DB during long runs.
+        if heap_changed and updates_queue is not None:
+            try:
+                updates_queue.put((int(score), int(seed_int)))
+            except Exception:
+                # Best-effort only; never fail the worker for telemetry.
+                pass
 
         if sleep_s > 0.0 and throttle_every > 0 and ((i + 1) % throttle_every == 0):
             _time.sleep(sleep_s)
@@ -1170,6 +1253,9 @@ def main():
     parser.add_argument('--retrogrades', action='store_true', help='Enable printing of retrograde (R) and retrograde-inversion (RI) labels in the 12x12 header/rows')
     parser.add_argument('--export-file', '-e', help='Write the matrix to a file (plain text, no headers). Honors --note-names to write note-names instead of numbers')
     parser.add_argument('--export-csv', help='Write the matrix to a CSV file (no headers). Each row is a matrix row; last two rows: Major triads,Minor triads')
+    parser.add_argument('--export-heatmap', help='Write a 12x12 tonal-cube slice heatmap PNG for this matrix (single-matrix runs only)')
+    parser.add_argument('--heatmap-z', type=int, default=0, help='For --export-heatmap: Z-depth offset added to the 12x12 matrix values mod 12 (default: 0)')
+    parser.add_argument('--heatmap-labels', choices=['numbers', 'pitches'], default='numbers', help='For --export-heatmap: annotate cells with numbers (0-11) or pitch names (C,C#,D,Eb,...)')
     parser.add_argument('--export-sql-db', help='Write run summaries into a MySQL table (default: Tonality_Test). URL like mysql://user:pass@host:3306/12Tone')
     parser.add_argument('--export-sql-table', default='Tonality_Test', help='SQL table name for --export-sql-db (default: Tonality_Test)')
     parser.add_argument('--quiet', action='store_true', help='Suppress matrix/triad/summary printing (errors still print)')
@@ -1183,9 +1269,19 @@ def main():
     parser.add_argument('--heartbeat-seconds', type=float, default=5.0, help='When using --search-best with --progress, print a per-worker heartbeat at this interval (seconds). Use 0 to disable (default: 5.0)')
     parser.add_argument('--best-only-table', default='Best_Only', help='SQL table name to write best-only winners into (default: Best_Only)')
     parser.add_argument('--best-only-reset', action='store_true', help='When using --search-best with --export-sql-db, truncate the best-only table before inserting winners')
+    parser.add_argument('--best-only-live-db-seconds', type=float, default=0.0, help='When using --search-best with --export-sql-db, periodically snapshot the evolving global top-K into the best-only table every N seconds. Use 0 to disable (default: 0)')
     parser.add_argument('--random-repeats', '-R', type=int, default=1, help='When using --random without a numeric seed, repeat generation this many times (creates indexed export files)')
 
     args = parser.parse_args()
+
+    # Disallow heatmap export for batch modes.
+    if args.export_heatmap:
+        if args.search_best is not None:
+            print("Error: --export-heatmap is not allowed with --search-best")
+            return 1
+        if args.random == 'RANDOM' and (args.random_repeats and args.random_repeats > 1):
+            print("Error: --export-heatmap is not allowed with batch runs (--random-repeats > 1)")
+            return 1
 
     # --- Best-only search mode (top-K random sampling) ---
     if args.search_best is not None:
@@ -1217,6 +1313,13 @@ def main():
         throttle_ms = float(args.throttle_ms or 0.0)
 
         heartbeat_seconds = float(args.heartbeat_seconds or 0.0)
+        live_db_seconds = float(args.best_only_live_db_seconds or 0.0)
+        if live_db_seconds < 0:
+            print("Error: --best-only-live-db-seconds must be >= 0")
+            return 1
+        if live_db_seconds > 0 and not args.export_sql_db:
+            print("Error: --best-only-live-db-seconds requires --export-sql-db")
+            return 1
 
         # Activity monitor: estimate runtime with a quick calibration pass on this machine.
         if args.progress:
@@ -1260,6 +1363,17 @@ def main():
         worker_payloads = []
         base = n // jobs
         extra = n % jobs
+        updates_queue = None
+        updates_manager = None
+        if live_db_seconds > 0:
+            import multiprocessing as _mp
+
+            ctx = _mp.get_context('spawn')
+            # Under the 'spawn' start method, plain Queue objects cannot be pickled into
+            # worker payloads. Use a Manager().Queue() proxy instead.
+            updates_manager = ctx.Manager()
+            updates_queue = updates_manager.Queue()
+
         for i in range(jobs):
             chunk = base + (1 if i < extra else 0)
             worker_payloads.append(
@@ -1273,23 +1387,153 @@ def main():
                     heartbeat_seconds,
                     i + 1,
                     bool(args.progress),
+                    updates_queue,
                 )
             )
 
+        def _merge_into_global_heap(global_heap, score_int: int, seed_int: int, top_k_int: int):
+            item = (int(score_int), int(seed_int), None)
+            if len(global_heap) < top_k_int:
+                heapq.heappush(global_heap, item)
+                return True
+            if item[0] > global_heap[0][0] or (item[0] == global_heap[0][0] and item[1] > global_heap[0][1]):
+                heapq.heapreplace(global_heap, item)
+                return True
+            return False
+
+        def _snapshot_best_only_table(db_cursor, table_name: str, winners_seeds_scores):
+            # Rewrite the table with the current winners (ranked). Requires `--best-only-reset`.
+            db_cursor.execute(f"TRUNCATE TABLE `{table_name}`")
+            for rank, (score_int, seed_int) in enumerate(winners_seeds_scores, start=1):
+                mat, c = _evaluate_random_seed(seed_int, wrap=wrap, allow_inversions=allow_inversions)
+                _mysql_insert_run(
+                    db_cursor,
+                    c,
+                    mat,
+                    run_index=int(rank),
+                    seed=int(seed_int),
+                    wrap=wrap,
+                    allow_inversions=allow_inversions,
+                    table_name=table_name,
+                )
+
         heaps = []
-        if jobs == 1:
-            heaps = [_best_only_worker(worker_payloads[0])]
-        else:
-            import multiprocessing as _mp
+        global_heap_live = []
+        last_snapshot = None
+        db_conn_live = None
+        db_cursor_live = None
 
-            ctx = _mp.get_context('spawn')
-            with ctx.Pool(processes=jobs) as pool:
-                for idx, h in enumerate(pool.imap_unordered(_best_only_worker, worker_payloads), start=1):
-                    heaps.append(h)
-                    if args.progress:
-                        print(f"progress: worker {idx}/{jobs} complete", file=sys.stderr)
+        if live_db_seconds > 0:
+            if not args.best_only_reset:
+                print("Error: --best-only-live-db-seconds requires --best-only-reset (so snapshots can safely rewrite the table)")
+                return 1
+            try:
+                db_conn_live = _mysql_connect(args.export_sql_db)
+                db_cursor_live = db_conn_live.cursor()
+                _mysql_ensure_table(db_cursor_live, table_name=args.best_only_table)
+                # Clear immediately so the table reflects the current run even before the first snapshot.
+                db_cursor_live.execute(f"TRUNCATE TABLE `{args.best_only_table}`")
+            except Exception as ex:
+                print(f"Error connecting to DB for live best-only snapshots {_redact_db_url(args.export_sql_db)}: {ex}")
+                return 1
 
-        # Merge local heaps into a global top-K
+        try:
+            if jobs == 1:
+                # Single process: just run the worker directly.
+                heaps = [_best_only_worker(worker_payloads[0])]
+            else:
+                import multiprocessing as _mp
+                import time as _time
+
+                ctx = _mp.get_context('spawn')
+                with ctx.Pool(processes=jobs) as pool:
+                    async_results = [pool.apply_async(_best_only_worker, (payload,)) for payload in worker_payloads]
+                    completed = 0
+                    last_snapshot = _time.time()
+
+                    while completed < len(async_results):
+                        # Drain candidate updates from workers
+                        if updates_queue is not None:
+                            drained_any = False
+                            while True:
+                                try:
+                                    s, seed_int = updates_queue.get_nowait()
+                                except Exception:
+                                    break
+                                drained_any = True
+                                _merge_into_global_heap(global_heap_live, int(s), int(seed_int), top_k)
+
+                            if drained_any and live_db_seconds > 0 and db_cursor_live is not None:
+                                now = _time.time()
+                                if (now - last_snapshot) >= live_db_seconds:
+                                    last_snapshot = now
+                                    winners_live = sorted(global_heap_live, key=lambda x: (x[0], x[1]), reverse=True)
+                                    winners_seeds_scores = [(int(s), int(seed)) for (s, seed, _none) in winners_live]
+                                    try:
+                                        _snapshot_best_only_table(db_cursor_live, args.best_only_table, winners_seeds_scores)
+                                        if args.progress:
+                                            max_s = winners_seeds_scores[0][0] if winners_seeds_scores else 0
+                                            min_s = winners_seeds_scores[-1][0] if winners_seeds_scores else 0
+                                            print(
+                                                f"live-db: snapshot top {len(winners_seeds_scores)} max={max_s} min={min_s}",
+                                                file=sys.stderr,
+                                            )
+                                    except Exception as ex:
+                                        print(f"live-db: snapshot failed: {ex}", file=sys.stderr)
+
+                        # Check for completed workers
+                        new_completed = 0
+                        for r in async_results:
+                            if r.ready():
+                                new_completed += 1
+                        if new_completed != completed:
+                            completed = new_completed
+                            if args.progress:
+                                print(f"progress: workers complete {completed}/{jobs}", file=sys.stderr)
+
+                        _time.sleep(0.05)
+
+                    # Collect all heaps
+                    for r in async_results:
+                        heaps.append(r.get())
+        except KeyboardInterrupt:
+            # If interrupted, best-effort snapshot current winners if live updates are enabled.
+            if live_db_seconds > 0 and db_cursor_live is not None:
+                try:
+                    import time as _time
+
+                    # Drain any remaining queued updates
+                    if updates_queue is not None:
+                        while True:
+                            try:
+                                s, seed_int = updates_queue.get_nowait()
+                            except Exception:
+                                break
+                            _merge_into_global_heap(global_heap_live, int(s), int(seed_int), top_k)
+
+                    winners_live = sorted(global_heap_live, key=lambda x: (x[0], x[1]), reverse=True)
+                    winners_seeds_scores = [(int(s), int(seed)) for (s, seed, _none) in winners_live]
+                    _snapshot_best_only_table(db_cursor_live, args.best_only_table, winners_seeds_scores)
+                    print(
+                        f"live-db: wrote snapshot on interrupt (top {len(winners_seeds_scores)})",
+                        file=sys.stderr,
+                    )
+                except Exception as ex:
+                    print(f"live-db: failed to snapshot on interrupt: {ex}", file=sys.stderr)
+            return 130
+        finally:
+            if updates_manager is not None:
+                try:
+                    updates_manager.shutdown()
+                except Exception:
+                    pass
+            if db_conn_live is not None:
+                try:
+                    db_conn_live.close()
+                except Exception:
+                    pass
+
+        # Merge local heaps into a global top-K (authoritative)
         global_heap = []
         for h in heaps:
             for item in h:
@@ -1300,6 +1544,11 @@ def main():
                         heapq.heapreplace(global_heap, item)
 
         winners = sorted(global_heap, key=lambda x: (x[0], x[1]), reverse=True)
+
+        if args.progress or args.export_sql_db:
+            max_score = winners[0][0] if winners else 0
+            min_score = winners[-1][0] if winners else 0
+            print(f"best-only: final top {len(winners)} max={max_score} min={min_score}", file=sys.stderr)
 
         # Optionally export winners to a dedicated best-only table
         if args.export_sql_db:
@@ -1346,6 +1595,8 @@ def main():
     ])
 
     matrix = None
+    run_seed_int = None
+    seed_title = None
     try:
         if args.example:
             matrix = example_matrix
@@ -1376,6 +1627,7 @@ def main():
                 raise ValueError('Seed row must be a permutation of 0..11 (each pitch-class appears once)')
 
             matrix = generate_dodecaphonic_matrix(seed_nums)
+            seed_title = "seed-row"
         elif args.random is not None:
             # auto-generate a 12-element seed row either deterministically (if an integer
             # seed was provided) or using system randomness when no numeric seed is given.
@@ -1392,6 +1644,9 @@ def main():
                     seed_int = int(random_arg)
                 except Exception:
                     raise ValueError('When providing --random with a value it must be an integer seed')
+
+            run_seed_int = int(seed_int)
+            seed_title = str(run_seed_int)
 
             rnd = _random.Random(seed_int)
             seed_nums = list(range(12))
@@ -1652,7 +1907,10 @@ def main():
             db_cursor = db_conn.cursor()
             _mysql_ensure_table(db_cursor, table_name=args.export_sql_table)
             seed_value = None
-            if args.random is not None and args.random != 'RANDOM':
+            # Prefer the computed/assigned seed when available.
+            if run_seed_int is not None:
+                seed_value = int(run_seed_int)
+            elif args.random is not None and args.random != 'RANDOM':
                 try:
                     seed_value = int(args.random)
                 except Exception:
@@ -1692,10 +1950,12 @@ def main():
             minor_count = sum(1 for t, *_ in found_triads if isinstance(t, str) and t.startswith('Minor'))
             # Determine seed for single-run: extract from seed_nums if available, else N/A
             seed_value = 'N/A'
-            if args.random is not None and args.random != 'RANDOM':
+            if run_seed_int is not None:
+                seed_value = int(run_seed_int)
+            elif args.random is not None and args.random != 'RANDOM':
                 try:
                     seed_value = int(args.random)
-                except:
+                except Exception:
                     seed_value = 'N/A'
             
             with open(args.export_csv, 'w', newline='', encoding='utf-8') as cf:
@@ -1708,6 +1968,26 @@ def main():
                 writer.writerow(['Number of Minor Triads', str(minor_count)])
         except Exception as ex:
             print(f"Error writing CSV export file '{args.export_csv}': {ex}")
+            return 1
+
+    if args.export_heatmap:
+        if seed_title is None:
+            if run_seed_int is not None:
+                seed_title = str(run_seed_int)
+            elif args.random is not None and args.random != 'RANDOM':
+                seed_title = str(args.random)
+            else:
+                seed_title = "unknown"
+        try:
+            export_tonal_cube_slice_heatmap(
+                matrix,
+                args.export_heatmap,
+                z_depth=int(args.heatmap_z or 0),
+                title=seed_title,
+                label_mode=str(args.heatmap_labels or "numbers"),
+            )
+        except Exception as ex:
+            print(f"Error writing heatmap '{args.export_heatmap}': {ex}")
             return 1
 
     # Output the answers
