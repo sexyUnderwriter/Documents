@@ -739,47 +739,25 @@ def _evaluate_random_seed(seed_int: int, *, wrap: bool, allow_inversions: bool):
     return mat, consonance
 
 
-def _format_duration_seconds(seconds: float) -> str:
-    seconds = float(seconds)
-    if seconds != seconds or seconds < 0:  # NaN or negative
-        seconds = 0.0
-    total = int(round(seconds))
-    h = total // 3600
-    m = (total % 3600) // 60
-    s = total % 60
-    return f"{h:02d}:{m:02d}:{s:02d}"
-
-
 def _best_only_worker(payload):
     """Worker for multiprocessing best-only search.
 
     Returns a list of (score, seed_int, consonance_summary).
     """
-    n, top_k, wrap, allow_inversions, throttle_every, throttle_ms, heartbeat_seconds, worker_id, progress_enabled = payload
+    n, top_k, wrap, allow_inversions, throttle_every, throttle_ms = payload
     import secrets as _secrets
     import time as _time
-    import sys as _sys
 
     heap = []
     throttle_every = int(throttle_every or 0)
     throttle_ms = float(throttle_ms or 0.0)
     sleep_s = max(0.0, throttle_ms / 1000.0)
 
-    heartbeat_seconds = float(heartbeat_seconds or 0.0)
-    worker_id = int(worker_id or 0)
-    progress_enabled = bool(progress_enabled)
-    t0 = _time.perf_counter()
-    last_beat = t0
-    best_score = None
-
     for i in range(int(n)):
         seed_int = _secrets.randbits(63)
         _, c = _evaluate_random_seed(seed_int, wrap=wrap, allow_inversions=allow_inversions)
         score = int(c.get("score", 0))
         item = (score, int(seed_int), c)
-
-        if best_score is None or score > best_score:
-            best_score = score
 
         if len(heap) < int(top_k):
             heapq.heappush(heap, item)
@@ -789,21 +767,6 @@ def _best_only_worker(payload):
 
         if sleep_s > 0.0 and throttle_every > 0 and ((i + 1) % throttle_every == 0):
             _time.sleep(sleep_s)
-
-        if progress_enabled and heartbeat_seconds > 0:
-            now = _time.perf_counter()
-            if (now - last_beat) >= heartbeat_seconds:
-                last_beat = now
-                done = i + 1
-                elapsed = now - t0
-                rate = (done / elapsed) if elapsed > 0 else 0.0
-                remaining = int(n) - done
-                eta = (remaining / rate) if rate > 0 else 0.0
-                pct = (100.0 * done / int(n)) if int(n) > 0 else 100.0
-                print(
-                    f"worker {worker_id}: {done}/{int(n)} ({pct:5.1f}%) rate={rate:,.1f}/s ETA={_format_duration_seconds(eta)} best={best_score}",
-                    file=_sys.stderr,
-                )
 
     return heap
 
@@ -1180,7 +1143,6 @@ def main():
     parser.add_argument('--jobs', type=int, default=1, help='When using --search-best, run with this many worker processes (default: 1). Use 0 to auto-pick ~90%% of CPU cores.')
     parser.add_argument('--throttle-ms', type=float, default=0.0, help='When using --search-best, sleep this many milliseconds periodically in each worker to reduce sustained CPU/heat (default: 0)')
     parser.add_argument('--throttle-every', type=int, default=500, help='When using --search-best with --throttle-ms, sleep every N candidates per worker (default: 500)')
-    parser.add_argument('--heartbeat-seconds', type=float, default=5.0, help='When using --search-best with --progress, print a per-worker heartbeat at this interval (seconds). Use 0 to disable (default: 5.0)')
     parser.add_argument('--best-only-table', default='Best_Only', help='SQL table name to write best-only winners into (default: Best_Only)')
     parser.add_argument('--best-only-reset', action='store_true', help='When using --search-best with --export-sql-db, truncate the best-only table before inserting winners')
     parser.add_argument('--random-repeats', '-R', type=int, default=1, help='When using --random without a numeric seed, repeat generation this many times (creates indexed export files)')
@@ -1216,65 +1178,12 @@ def main():
         throttle_every = int(args.throttle_every or 0)
         throttle_ms = float(args.throttle_ms or 0.0)
 
-        heartbeat_seconds = float(args.heartbeat_seconds or 0.0)
-
-        # Activity monitor: estimate runtime with a quick calibration pass on this machine.
-        if args.progress:
-            try:
-                import os as _os
-                import platform as _platform
-                import secrets as _secrets
-                import time as _time
-
-                cores = int(_os.cpu_count() or 1)
-                calib_n = min(100, max(10, n // 100000))
-                t_cal0 = _time.perf_counter()
-                for _ in range(int(calib_n)):
-                    seed_int = _secrets.randbits(63)
-                    _evaluate_random_seed(seed_int, wrap=wrap, allow_inversions=allow_inversions)
-                t_cal1 = _time.perf_counter()
-
-                per_candidate = (t_cal1 - t_cal0) / float(calib_n)
-                est_compute = (per_candidate * float(n)) / float(jobs)
-                est_throttle = 0.0
-                if throttle_ms > 0.0 and throttle_every > 0:
-                    # each worker sleeps roughly once per throttle_every candidates
-                    sleeps_per_worker = (float(n) / float(jobs)) / float(throttle_every)
-                    est_throttle = sleeps_per_worker * (throttle_ms / 1000.0)
-                est_total = est_compute + est_throttle
-                finish_epoch = _time.time() + est_total
-                finish_local = _time.strftime('%Y-%m-%d %H:%M:%S', _time.localtime(finish_epoch))
-
-                print(
-                    "monitor: "
-                    f"platform={_platform.platform()} py={_platform.python_version()} "
-                    f"cores={cores} jobs={jobs} n={n} top_k={top_k} "
-                    f"throttle={throttle_ms}ms/{throttle_every} heartbeat={heartbeat_seconds}s "
-                    f"calib={calib_n} per_candidate={per_candidate:.4f}s "
-                    f"est_total={_format_duration_seconds(est_total)} finish~{finish_local}",
-                    file=sys.stderr,
-                )
-            except Exception as ex:
-                print(f"monitor: calibration failed: {ex}", file=sys.stderr)
-
         worker_payloads = []
         base = n // jobs
         extra = n % jobs
         for i in range(jobs):
             chunk = base + (1 if i < extra else 0)
-            worker_payloads.append(
-                (
-                    chunk,
-                    top_k,
-                    wrap,
-                    allow_inversions,
-                    throttle_every,
-                    throttle_ms,
-                    heartbeat_seconds,
-                    i + 1,
-                    bool(args.progress),
-                )
-            )
+            worker_payloads.append((chunk, top_k, wrap, allow_inversions, throttle_every, throttle_ms))
 
         heaps = []
         if jobs == 1:
