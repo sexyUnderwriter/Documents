@@ -5,3 +5,7 @@
 !.gitignore
 !12tone.py
 !12tone.py.bak.*
+
+# Allow GitHub Copilot agent instructions
+!.github/
+!.github/copilot-instructions.md
