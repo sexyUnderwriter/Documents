@@ -421,6 +421,12 @@ def analyze_diatonic_affinity(matrix):
             "diatonic_max_run_rows_max": 0,
             "diatonic_max_run_cols_max": 0,
             "diatonic_best_t_first": None,
+            "diatonic_best_row_index_1based": None,
+            "diatonic_best_row_run": 0,
+            "diatonic_best_row_t": None,
+            "diatonic_best_col_index_1based": None,
+            "diatonic_best_col_run": 0,
+            "diatonic_best_col_t": None,
         }
 
     rows, cols = matrix.shape
@@ -430,6 +436,10 @@ def analyze_diatonic_affinity(matrix):
     rows_max = 0
     cols_max = 0
     best_t_first = None
+    best_row_index_1based = None
+    best_row_t = None
+    best_col_index_1based = None
+    best_col_t = None
 
     # Rows
     for r in range(rows):
@@ -440,6 +450,8 @@ def analyze_diatonic_affinity(matrix):
         rows_sum += int(run_len)
         if run_len > rows_max:
             rows_max = int(run_len)
+            best_row_index_1based = int(r + 1)
+            best_row_t = int(t) if t is not None else None
         if best_t_first is None and t is not None:
             best_t_first = int(t)
 
@@ -452,6 +464,8 @@ def analyze_diatonic_affinity(matrix):
         cols_sum += int(run_len)
         if run_len > cols_max:
             cols_max = int(run_len)
+            best_col_index_1based = int(c + 1)
+            best_col_t = int(t) if t is not None else None
         if best_t_first is None and t is not None:
             best_t_first = int(t)
 
@@ -461,7 +475,171 @@ def analyze_diatonic_affinity(matrix):
         "diatonic_max_run_rows_max": int(rows_max),
         "diatonic_max_run_cols_max": int(cols_max),
         "diatonic_best_t_first": best_t_first,
+        "diatonic_best_row_index_1based": best_row_index_1based,
+        "diatonic_best_row_run": int(rows_max),
+        "diatonic_best_row_t": best_row_t,
+        "diatonic_best_col_index_1based": best_col_index_1based,
+        "diatonic_best_col_run": int(cols_max),
+        "diatonic_best_col_t": best_col_t,
     }
+
+
+def describe_consonance(
+    matrix,
+    consonance: dict,
+    *,
+    show_note_names: bool = False,
+    max_examples_per_type: int = 3,
+):
+    """Generate a text description of the consonance characteristics.
+
+    Intentionally focuses on a handful of high-signal musical qualities and points
+    to specific rows/columns when the underlying analysis includes locations.
+    """
+
+    def _pc_name(pc: int) -> str:
+        return PITCH_NAMES[int(pc) % 12]
+
+    def _fmt_pc(pc: int) -> str:
+        return _pc_name(pc) if show_note_names else str(int(pc) % 12)
+
+    lines = []
+
+    score = int(consonance.get("score", 0))
+    majors = int(consonance.get("major_triads", 0))
+    minors = int(consonance.get("minor_triads", 0))
+    fifths = int(consonance.get("perfect_fifth_dyads", 0))
+    octaves = int(consonance.get("octave_dyads", 0))
+    balanced_expected = bool(consonance.get("expected_balanced_triads"))
+
+    lines.append(f"Overall: score={score}; triads Major={majors}, Minor={minors}; dyads 5ths={fifths}, oct/unison={octaves}.")
+
+    if majors != minors:
+        if majors > minors:
+            lines.append("Color: slightly brighter/major-leaning (more major than minor triads detected).")
+        else:
+            lines.append("Color: slightly darker/minor-leaning (more minor than major triads detected).")
+        if balanced_expected:
+            lines.append("Note: for 12×12 matrices you often expect major/minor to balance; this one is unbalanced.")
+    else:
+        lines.append("Color: major/minor balance (triad counts match).")
+
+    triads = consonance.get("triads") or []
+    dyads = consonance.get("dyads") or []
+
+    def _triad_examples(prefix: str):
+        out = []
+        for entry in triads:
+            if not entry:
+                continue
+            label = entry[0]
+            if not (isinstance(label, str) and label.startswith(prefix)):
+                continue
+            # triad tuple shape is either 6-tuple (includes root_pc) or 5-tuple.
+            if len(entry) >= 6:
+                _label, loc, idx_1b, start, pitches, root_pc = entry[:6]
+            else:
+                _label, loc, idx_1b, start, pitches = entry[:5]
+                root_pc = pitches[0] if pitches else None
+
+            if root_pc is None:
+                continue
+
+            pitch_str = ", ".join(_fmt_pc(p) for p in pitches)
+            root_str = _pc_name(root_pc) if show_note_names else str(int(root_pc) % 12)
+            out.append(
+                f"- {loc} {int(idx_1b)} (start {int(start)}): {label} ⇒ [{pitch_str}] (root {root_str})"
+            )
+            if len(out) >= int(max_examples_per_type):
+                break
+        return out
+
+    major_ex = _triad_examples("Major")
+    minor_ex = _triad_examples("Minor")
+    if major_ex or minor_ex:
+        lines.append("Triad hotspots (examples):")
+        lines.extend(major_ex)
+        lines.extend(minor_ex)
+
+    def _dyad_examples(target_label: str):
+        out = []
+        for entry in dyads:
+            if not entry:
+                continue
+            label = entry[0]
+            if label != target_label:
+                continue
+            # (label, location_type, index, start_pos, [p1,p2], ic)
+            if len(entry) < 6:
+                continue
+            _label, loc, idx_1b, start, pitches, ic = entry[:6]
+            if not pitches or len(pitches) != 2:
+                continue
+            p1, p2 = pitches
+            out.append(
+                f"- {loc} {int(idx_1b)} (start {int(start)}): {label} (ic{int(ic)}) between {_fmt_pc(p1)} and {_fmt_pc(p2)}"
+            )
+            if len(out) >= int(max_examples_per_type):
+                break
+        return out
+
+    fifth_ex = _dyad_examples("Perfect Fifth")
+    oct_ex = _dyad_examples("Octave/Unison")
+    if fifth_ex or oct_ex:
+        lines.append("Dyad anchors (examples):")
+        lines.extend(fifth_ex)
+        lines.extend(oct_ex)
+
+    # Matrix-wide structure hints (these don’t currently track exact row/col indices, just counts).
+    hm_r = int(consonance.get("hex_mirror_exact_rows", 0))
+    hm_c = int(consonance.get("hex_mirror_exact_cols", 0))
+    ht_r = int(consonance.get("hex_mirror_transposed_rows", 0))
+    ht_c = int(consonance.get("hex_mirror_transposed_cols", 0))
+    hi_r = int(consonance.get("hex_mirror_inverted_rows", 0))
+    hi_c = int(consonance.get("hex_mirror_inverted_cols", 0))
+    if (hm_r + hm_c + ht_r + ht_c + hi_r + hi_c) > 0:
+        parts = []
+        if (hm_r + hm_c) > 0:
+            parts.append(f"exact hexachord mirrors in {hm_r} row(s) and {hm_c} column(s)")
+        if (ht_r + ht_c) > 0:
+            n = consonance.get("hex_mirror_transposed_first_n")
+            parts.append(f"transposed mirrors in {ht_r} row(s) and {ht_c} column(s)" + (f" (first Tn={n})" if n is not None else ""))
+        if (hi_r + hi_c) > 0:
+            n = consonance.get("hex_mirror_inverted_first_n")
+            parts.append(f"inverted mirrors in {hi_r} row(s) and {hi_c} column(s)" + (f" (first In={n})" if n is not None else ""))
+        lines.append("Set-structure: " + "; ".join(parts) + ".")
+
+    comb_t = int(consonance.get("comb_t_total_rows", 0)) + int(consonance.get("comb_t_total_cols", 0))
+    comb_i = int(consonance.get("comb_i_total_rows", 0)) + int(consonance.get("comb_i_total_cols", 0))
+    if comb_t or comb_i:
+        extra = []
+        if comb_t:
+            extra.append(f"T-combinatoriality count≈{comb_t}")
+        if comb_i:
+            extra.append(f"I-combinatoriality count≈{comb_i}")
+        lines.append("Combinatoriality: " + "; ".join(extra) + ".")
+
+    # Diatonic affinity: now includes best row/col for the longest major-scale run.
+    br = consonance.get("diatonic_best_row_index_1based")
+    bc = consonance.get("diatonic_best_col_index_1based")
+    br_run = int(consonance.get("diatonic_best_row_run", 0))
+    bc_run = int(consonance.get("diatonic_best_col_run", 0))
+    br_t = consonance.get("diatonic_best_row_t")
+    bc_t = consonance.get("diatonic_best_col_t")
+    if (br is not None and br_run > 0) or (bc is not None and bc_run > 0):
+        def _scale_name(t):
+            if t is None:
+                return ""
+            return _pc_name(int(t)) if show_note_names else str(int(t) % 12)
+
+        pieces = []
+        if br is not None and br_run > 0:
+            pieces.append(f"Row {int(br)} has the strongest major-scale run (len {br_run}" + (f", T={_scale_name(br_t)}" if br_t is not None else "") + ")")
+        if bc is not None and bc_run > 0:
+            pieces.append(f"Column {int(bc)} has the strongest major-scale run (len {bc_run}" + (f", T={_scale_name(bc_t)}" if bc_t is not None else "") + ")")
+        lines.append("Diatonic affinity: " + "; ".join(pieces) + ".")
+
+    return "\n".join(lines)
 
 
 DEFAULT_WEIGHTS = {
@@ -1261,6 +1439,8 @@ def main():
     parser.add_argument('--quiet', action='store_true', help='Suppress matrix/triad/summary printing (errors still print)')
     parser.add_argument('--progress', action='store_true', help='Print progress updates to stderr (useful with --random-repeats)')
 
+    parser.add_argument('--describe-consonance', action='store_true', help='Include a musical, row/column-referenced text description in the consonance summary')
+
     parser.add_argument('--search-best', type=int, help='Randomly sample N candidates and keep only the top-K by consonance score (best-only mode)')
     parser.add_argument('--top-k', type=int, default=100, help='When using --search-best, keep the top K results (default: 100)')
     parser.add_argument('--jobs', type=int, default=1, help='When using --search-best, run with this many worker processes (default: 1). Use 0 to auto-pick ~90%% of CPU cores.')
@@ -1873,6 +2053,10 @@ def main():
                 print(f"  Perfect fifth dyads (ic5): {consonance['perfect_fifth_dyads']}")
                 print(f"  Octave/unison dyads (ic0): {consonance['octave_dyads']}")
 
+                if args.describe_consonance:
+                    print("\nConsonance Description:")
+                    print(describe_consonance(mat, consonance, show_note_names=args.note_names))
+
         if db_conn is not None:
             try:
                 db_conn.close()
@@ -2000,6 +2184,10 @@ def main():
         print(f"  Minor triads: {consonance['minor_triads']}")
         print(f"  Perfect fifth dyads (ic5): {consonance['perfect_fifth_dyads']}")
         print(f"  Octave/unison dyads (ic0): {consonance['octave_dyads']}")
+
+        if args.describe_consonance:
+            print("\nConsonance Description:")
+            print(describe_consonance(matrix, consonance, show_note_names=args.note_names))
 
         if consonance.get('expected_balanced_triads') and consonance['major_triads'] != consonance['minor_triads']:
             print("  ⚠️ Major/minor triad counts are unbalanced; research expectation is equal counts for 12x12 matrices.")
