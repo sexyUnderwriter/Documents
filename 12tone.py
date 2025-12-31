@@ -644,8 +644,8 @@ def describe_consonance(
 
 DEFAULT_WEIGHTS = {
     # Balanced by default (your research indicates major/minor counts match in 12x12 matrices)
-    "major_triad": 3,
-    "minor_triad": 3,
+    "major_triad": 5,
+    "minor_triad": 5,
     "perfect_fifth_dyad": 1,
     "octave_dyad": 2,
 
@@ -935,6 +935,7 @@ def export_tonal_cube_slice_heatmap(
     z_depth: int = 0,
     title: str | None = None,
     label_mode: str = "numbers",
+    color_mode: str = "chromatic",
 ) -> None:
     """Export a 12x12 tonal-cube slice heatmap as a PNG.
 
@@ -951,50 +952,102 @@ def export_tonal_cube_slice_heatmap(
 
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        import seaborn as sns
+        import matplotlib.colors as _mcolors
+        import numpy as _np
     except Exception:
         raise RuntimeError(
-            "Missing dependency for --export-heatmap. Install with: pip install matplotlib seaborn"
+            "Missing dependency for --export-heatmap. Install with: pip install matplotlib"
         )
 
     z_depth = int(z_depth)
-    data = (matrix.astype(int) + z_depth) % 12
+    base = matrix.astype(int) % 12
+    data = (base + z_depth) % 12
+
+    # Standard 12-tone matrix axis references:
+    # - columns labeled by the top row as In
+    # - rows labeled by the first column as Pn
+    top_row = [int(x) % 12 for x in base[0, :]]
+    first_col = [int(x) % 12 for x in base[:, 0]]
+
+    pitch_names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
+
+    def _fmt_axis(label_prefix: str, pc: int) -> str:
+        if label_mode == "pitches":
+            return f"{label_prefix}{pc}({pitch_names[int(pc) % 12]})"
+        return f"{label_prefix}{pc}"
+
+    x_ticklabels = [_fmt_axis("I", pc) for pc in top_row]
+    y_ticklabels = [_fmt_axis("P", pc) for pc in first_col]
 
     plt.figure(figsize=(10, 8))
 
     if label_mode == "pitches":
-        pitch_names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
-        annot = np.vectorize(lambda x: pitch_names[int(x) % 12])(data)
-        sns.heatmap(
-            data,
-            annot=annot,
-            fmt="s",
-            cmap="hsv",
-            cbar=True,
-            linewidths=1,
-            linecolor="black",
-            square=True,
-        )
+        annot_matrix = np.vectorize(lambda x: pitch_names[int(x) % 12])(data)
+        annot_fmt = "s"
     else:
-        sns.heatmap(
-            data,
-            annot=True,
-            fmt="d",
-            cmap="hsv",
-            cbar=True,
-            linewidths=1,
-            linecolor="black",
-            square=True,
-        )
+        annot_matrix = data.astype(int)
+        annot_fmt = "d"
 
+    color_mode = str(color_mode or "chromatic").lower()
+    if color_mode not in {"chromatic", "fifths"}:
+        raise ValueError("--heatmap-colors must be one of: chromatic, fifths")
+
+    if color_mode == "chromatic":
+        heat_data = data
+        # Discrete chromatic palette sampled from hsv to 12 colors for clarity.
+        base_cmap = matplotlib.colormaps.get_cmap("hsv").resampled(12)
+        cmap = _mcolors.ListedColormap([base_cmap(i) for i in range(12)], name="hsv12")
+        vmin, vmax = -0.5, 11.5
+        cbar_ticks = list(range(12))
+        cbar_labels = [pitch_names[i] if label_mode == "pitches" else str(i) for i in range(12)]
+    else:
+        fifths_order = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
+        idx_map = {int(pc): int(i) for i, pc in enumerate(fifths_order)}
+        heat_data = np.vectorize(lambda x: idx_map[int(x) % 12])(data)
+
+        base_cmap = matplotlib.colormaps.get_cmap("twilight").resampled(12)
+        cmap = _mcolors.ListedColormap([base_cmap(i) for i in range(12)], name="twilight12")
+        vmin, vmax = -0.5, 11.5
+        cbar_ticks = list(range(12))
+        cbar_labels = [pitch_names[pc] if label_mode == "pitches" else str(int(pc)) for pc in fifths_order]
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    im = ax.imshow(heat_data, cmap=cmap, vmin=vmin, vmax=vmax)
+
+    # Annotate cells
+    rows, cols = heat_data.shape
+    for r in range(rows):
+        for c in range(cols):
+            txt = annot_matrix[r, c]
+            ax.text(c, r, f"{txt}", ha="center", va="center", color="black")
+
+    # Ticks and labels
+    ax.set_xticks(_np.arange(cols))
+    ax.set_yticks(_np.arange(rows))
+    ax.set_xticklabels(x_ticklabels, rotation=0)
+    ax.set_yticklabels(y_ticklabels)
+
+    # Grid lines
+    ax.set_xticks(_np.arange(-0.5, cols, 1), minor=True)
+    ax.set_yticks(_np.arange(-0.5, rows, 1), minor=True)
+    ax.grid(which="minor", color="black", linewidth=1)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    # Colorbar
+    cbar = fig.colorbar(im, ax=ax, ticks=cbar_ticks)
+    cbar.ax.set_yticklabels(cbar_labels)
+
+    # Standard matrix styling: put the I-axis labels on top.
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
     if title is None:
         title = ""
     plt.title(str(title))
-    plt.xlabel("Prime Axis (X)")
-    plt.ylabel("Inversion Axis (Y)")
+    plt.xlabel("Inversion (I) — top row")
+    plt.ylabel("Prime (P) — first column")
 
     plt.savefig(out_path, dpi=200, bbox_inches="tight")
-    plt.close()
+    plt.close(fig)
 
 
 def _best_only_worker(payload):
@@ -1319,6 +1372,51 @@ def parse_matrix_from_csv(path):
     return np.array(converted, dtype=int)
 
 
+_PC_NAME_TO_INT = {
+    'c': 0,
+    'b#': 0,
+    'c#': 1,
+    'db': 1,
+    'd': 2,
+    'd#': 3,
+    'eb': 3,
+    'e': 4,
+    'fb': 4,
+    'e#': 5,
+    'f': 5,
+    'f#': 6,
+    'gb': 6,
+    'g': 7,
+    'g#': 8,
+    'ab': 8,
+    'a': 9,
+    'a#': 10,
+    'bb': 10,
+    'b': 11,
+    'cb': 11,
+}
+
+
+def parse_pitch_class_row(s: str):
+    """Parse a space/comma separated pitch-class row (names or numbers) into 12 ints 0..11."""
+    tokens = [t.strip() for t in s.replace(',', ' ').split() if t.strip()]
+    pcs = []
+    for t in tokens:
+        tl = t.lower()
+        if tl in _PC_NAME_TO_INT:
+            pcs.append(int(_PC_NAME_TO_INT[tl]))
+            continue
+        try:
+            pcs.append(int(tl) % 12)
+        except Exception as ex:
+            raise ValueError(f"Invalid pitch-class token: {t}") from ex
+    if len(pcs) != 12:
+        raise ValueError("Pitch-class row must contain exactly 12 elements")
+    if set(pcs) != set(range(12)):
+        raise ValueError("Pitch-class row must be a permutation of 0..11 (each pc once)")
+    return pcs
+
+
 def generate_dodecaphonic_matrix(seed_row):
     """Generate a 12x12 dodecaphonic (12-tone) matrix given an initial 12-element seed row.
 
@@ -1434,6 +1532,8 @@ def main():
     parser.add_argument('--export-heatmap', help='Write a 12x12 tonal-cube slice heatmap PNG for this matrix (single-matrix runs only)')
     parser.add_argument('--heatmap-z', type=int, default=0, help='For --export-heatmap: Z-depth offset added to the 12x12 matrix values mod 12 (default: 0)')
     parser.add_argument('--heatmap-labels', choices=['numbers', 'pitches'], default='numbers', help='For --export-heatmap: annotate cells with numbers (0-11) or pitch names (C,C#,D,Eb,...)')
+    parser.add_argument('--heatmap-colors', choices=['chromatic', 'fifths'], default='chromatic', help='For --export-heatmap: color mapping for pitch classes. "chromatic" uses 0..11 order; "fifths" orders colors by circle-of-fifths adjacency.')
+    parser.add_argument('--heatmap-pc-row', help='Provide a 12-element pitch-class row (names or numbers) to build a 12x12 matrix and export a heatmap. Requires --export-heatmap.')
     parser.add_argument('--export-sql-db', help='Write run summaries into a MySQL table (default: Tonality_Test). URL like mysql://user:pass@host:3306/12Tone')
     parser.add_argument('--export-sql-table', default='Tonality_Test', help='SQL table name for --export-sql-db (default: Tonality_Test)')
     parser.add_argument('--quiet', action='store_true', help='Suppress matrix/triad/summary printing (errors still print)')
@@ -1730,6 +1830,14 @@ def main():
             min_score = winners[-1][0] if winners else 0
             print(f"best-only: final top {len(winners)} max={max_score} min={min_score}", file=sys.stderr)
 
+        # Always report the seed(s) achieving the max score (helpful even in --quiet mode).
+        if winners:
+            max_score = winners[0][0]
+            max_seeds = [int(seed_int) for (score_int, seed_int, _summary) in winners if score_int == max_score]
+            # Limit to a reasonable number to avoid noisy output.
+            max_seeds_display = max_seeds if len(max_seeds) <= 50 else max_seeds[:50] + ['...']
+            print(f"best-only: max score {max_score} seeds={max_seeds_display}", file=sys.stderr)
+
         # Optionally export winners to a dedicated best-only table
         if args.export_sql_db:
             try:
@@ -1808,6 +1916,12 @@ def main():
 
             matrix = generate_dodecaphonic_matrix(seed_nums)
             seed_title = "seed-row"
+        elif args.heatmap_pc_row:
+            if not args.export_heatmap:
+                raise ValueError("--heatmap-pc-row requires --export-heatmap (output path)")
+            seed_nums = parse_pitch_class_row(args.heatmap_pc_row)
+            matrix = generate_dodecaphonic_matrix(seed_nums)
+            seed_title = "pc-row"
         elif args.random is not None:
             # auto-generate a 12-element seed row either deterministically (if an integer
             # seed was provided) or using system randomness when no numeric seed is given.
@@ -2169,6 +2283,7 @@ def main():
                 z_depth=int(args.heatmap_z or 0),
                 title=seed_title,
                 label_mode=str(args.heatmap_labels or "numbers"),
+                color_mode=str(args.heatmap_colors or "chromatic"),
             )
         except Exception as ex:
             print(f"Error writing heatmap '{args.export_heatmap}': {ex}")
