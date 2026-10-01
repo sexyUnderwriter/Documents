@@ -9,3 +9,4 @@
 # Allow GitHub Copilot agent instructions
 !.github/
 !.github/copilot-instructions.md
+!tonnetz-progressions-modern-poetry-guide.md
