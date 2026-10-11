@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "tuning": {"a4_hz": 440.0, "lowest_note": "F2", "lowest_midi": 41},
+  "physical_geometry_confirmed": false,
+  "tonehole_inventory_confirmed": false,
+  "head_correction_mm": null,
+  "bell_correction_mm": null,
+  "segments": [
+    {
+      "id": "head_limb_from_window",
+      "length_mm": null,
+      "width_start_mm": null,
+      "height_start_mm": null,
+      "width_end_mm": null,
+      "height_end_mm": null
+    },
+    {
+      "id": "head_turn",
+      "length_mm": null,
+      "width_start_mm": null,
+      "height_start_mm": null,
+      "width_end_mm": null,
+      "height_end_mm": null
+    },
+    {
+      "id": "head_limb_to_body",
+      "length_mm": null,
+      "width_start_mm": null,
+      "height_start_mm": null,
+      "width_end_mm": null,
+      "height_end_mm": null
+    },
+    {
+      "id": "body_490_provisional_direction",
+      "length_mm": 490.0,
+      "width_start_mm": 60.0,
+      "height_start_mm": 60.0,
+      "width_end_mm": 52.0,
+      "height_end_mm": 52.0
+    },
+    {
+      "id": "body_785_provisional_direction",
+      "length_mm": 785.0,
+      "width_start_mm": 52.0,
+      "height_start_mm": 52.0,
+      "width_end_mm": 38.0,
+      "height_end_mm": 38.0
+    }
+  ],
+  "toneholes": [],
+  "fingerings": {"all_closed": []},
+  "evidence": [
+    {
+      "sources": ["trapezoid_4panel_box_assembly.obj", "isosceles_trapezoid_490x70x78mm.svg", "isosceles_trapezoid_490x74p6x66p6mm.svg"],
+      "status": "CAD dimensions, not verified as-built",
+      "length_mm": 490.0,
+      "outer_end_sides_mm": [70.0, 78.0],
+      "wall_mm": 9.0,
+      "derived_inner_end_sides_mm": [52.0, 60.0],
+      "note": "74.6/66.6 are mating panel widths, not bore widths. Reversal in the segment list is an assembly hypothesis."
+    },
+    {
+      "sources": ["trapezoid_785_4panel_box_rabbeted.obj", "isosceles_trapezoid_785x56x70mm.dxf", "isosceles_trapezoid_785x52p6x66p6mm.dxf"],
+      "status": "CAD dimensions, not verified as-built",
+      "length_mm": 785.0,
+      "outer_end_sides_mm": [56.0, 70.0],
+      "wall_mm": 9.0,
+      "derived_inner_end_sides_mm": [38.0, 52.0],
+      "note": "The matching 52 mm ends suggest a join but do not establish assembly order, overlap or direction."
+    },
+    {
+      "sources": ["square_gasket_70.2od_51.7id.svg", "square_gasket_78.2od_59.7id.svg"],
+      "status": "CAD gasket apertures",
+      "aperture_sides_mm": [51.7, 59.7],
+      "thickness_mm": null,
+      "note": "Not included as acoustic segments until installed location and compressed thickness are measured."
+    },
+    {
+      "sources": ["front_dimensions.svg", "back_dimenstions.svg", "combined.svg", "IMG_0849.png"],
+      "status": "Annotated reference image, not a clone bore measurement",
+      "exterior_height_mm": 1520.0,
+      "top_to_window_region_mm": 260.0,
+      "other_front_labels_mm": [9.83, 62.47, 74.07, 10.58, 30.29, 54.78],
+      "other_back_label_mm": 99.15,
+      "other_combined_label_mm": 155.15,
+      "note": "Image-derived dimensions have no stated tolerance. Do not use exterior height as acoustic length or exterior widths as bore widths."
+    },
+    {
+      "sources": ["IMG_0838.png", "IMG_0850.png", "IMG_0851.png"],
+      "status": "Photo observations and rough ruler estimates only",
+      "visible_longitudinal_span_estimate_mm": [320.0, 340.0],
+      "visible_return_channel_width_estimate_mm": [58.0, 63.0],
+      "note": "Divider and upper corner blocks indicate a folded passage. Perspective, ruler zero and occlusion prevent precise path or cross-section measurements; estimates are not solver inputs."
+    },
+    {
+      "sources": ["IMG_0731.png", "IMG_0850.png"],
+      "status": "Photo observations only",
+      "note": "Removable head components and mouthpiece visible. Windway height, window geometry, labium offset, passage depth and assembled boundary conditions remain unmeasured."
+    }
+  ]
+}
