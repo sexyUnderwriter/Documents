@@ -140,13 +140,30 @@ class AcousticTests(unittest.TestCase):
         config = json.loads((ROOT / "instrument_model.json").read_text())
         self.assertEqual(config["tuning"]["a4_hz"], 440)
         self.assertEqual(config["tuning"]["lowest_midi"], 41)
+        pitch = next(item for item in config["evidence"]
+                     if item["status"] == "User-reported sounding observation")
+        self.assertEqual(pitch["frequency_hz"], 260)
+        self.assertEqual(pitch["ambient_temperature_f"], 71)
+        self.assertEqual(pitch["ambient_temperature_c"], 21.7)
+        self.assertEqual(pitch["relative_humidity_percent"], 74)
+        self.assertEqual(pitch["mode"], 1)
+        self.assertIn("not overblown", pitch["mode_assumption"])
+        self.assertIn("Head blown pitch", pitch["measurement_scope"])
+        self.assertIsNone(pitch["fingering_id"])
+        head = {segment["id"]: segment for segment in config["segments"]
+                if segment["id"].startswith("head_")}
+        self.assertEqual(head["head_limb_from_window"]["length_mm"], 205)
+        self.assertEqual(head["head_limb_to_body"]["length_mm"], 250)
+        self.assertEqual(head["head_turn"]["curve_span_mm"], 135)
+        self.assertEqual(head["head_turn"]["length_mm"], 118)
+        self.assertEqual(head["head_turn"]["length_status"], "photo-triangulated estimate")
+        self.assertIn("117.8", config["evidence"][0]["turn_estimate_method"])
+        for segment in head.values():
+            self.assertEqual(
+                (segment["width_start_mm"], segment["height_start_mm"],
+                segment["width_end_mm"], segment["height_end_mm"]),
+                (60, 58, 60, 58))
         with self.assertRaisesRegex(ValueError, "unconfirmed"):
-            AcousticModel(config)
-        config["physical_geometry_confirmed"] = True
-        config["tonehole_inventory_confirmed"] = True
-        config["head_correction_mm"] = 0
-        config["bell_correction_mm"] = 0
-        with self.assertRaisesRegex(ValueError, "head_limb_from_window.length_mm"):
             AcousticModel(config)
 
     def test_invalid_holes_and_searches(self):

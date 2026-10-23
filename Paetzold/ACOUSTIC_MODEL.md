@@ -8,11 +8,19 @@ not a reproduction of a manufacturer's design. The target is **A4 = 440 Hz,
 by the builder. F2 is 87.307057858 Hz; F3 is 174.614115717 Hz. These are sounding,
 not octave-transposed written pitches.
 
-There are currently **no verified blown pitches** in the measurement record.
-Headjoint path lengths and cross-sectional depths are unknown. The executable
-therefore produces a reference tuning table but deliberately refuses to predict
-this instrument's resonances until geometry and hole inventory are completed.
-No drilling coordinates have been established.
+One user-reported blown pitch of 260 Hz is recorded at 71 F ambient temperature
+(21.7 C) and 74% relative humidity. Fingering, register/mode, and bore-air
+temperature were not specified. Per the builder, interpret test pitches as
+fundamentals (mode 1), not overblown notes. The 260 Hz observation is described
+as a head-blown pitch and is treated as head-only based on context; it is not
+yet a calibration record for the full instrument. The humidity is retained as
+metadata; the model does not correct for humidity.
+The head's two straight limbs and approximate passage cross-section have been
+measured. Its curved turn is estimated from the photos as a 118 mm centerline
+semicircle, not directly measured; other geometry and the hole inventory also
+remain incomplete. The executable therefore produces a reference tuning table
+but deliberately refuses to predict this instrument's resonances. No drilling
+coordinates have been established.
 
 ## What the supplied evidence establishes
 
@@ -27,16 +35,21 @@ No drilling coordinates have been established.
 | `IMG_0850.png` | Removed cover and divider; confirms a folded internal passage rather than a straight head tube | Hidden/assembled interfaces remain to be measured |
 | `IMG_0851.png` | Ruler across one visible passage | Approximate visible width 58-63 mm; perspective and ruler zero limit precision; depth unknown |
 | `IMG_0731.png` | Mouthpiece and removable head components | Does not establish windway/window dimensions or assembled acoustic boundaries |
+| Builder-reported head measurements | 205 mm from window side to back wall; 250 mm from plenum exit to back wall; 135 mm curve span; 60 x 58 mm passage | Limb lengths and section are entered in the model; curve span does not determine the turn's centerline length |
+| Photo-triangulated head turn | 118 mm estimated centerline arc | Assumes a 180-degree turn and that 135 mm is the outside-to-outside span; estimate, not a direct path measurement |
 
 The photo ranges are rough visual readings, **not statistical confidence
-intervals**, and are not inserted into solver geometry. All source filenames,
-labels and qualifications are retained in [instrument_model.json](./instrument_model.json).
+intervals**, and are not inserted into solver geometry. The builder-reported
+head measurements and their qualifications are retained in
+[instrument_model.json](./instrument_model.json).
 The CAD's 52 mm ends suggest a join between the two bodies. The provisional
 ordered body path is 60 -> 52 mm over 490 mm, then 52 -> 38 mm over 785 mm,
 but **assembly direction, overlap and actual bore must be verified**.
 
-The two nominal body lengths sum to 1275 mm. That is not the total air path:
-the folded head adds path, and joints can add or subtract axial length.
+The two nominal body lengths sum to 1275 mm. The two measured straight head
+limbs sum to 455 mm; adding the provisional 118 mm turn estimate gives an
+estimated head centerline length of 573 mm. Joints can add or subtract axial
+length, and the turn estimate must be confirmed before relying on the total.
 Neither the 1520 mm exterior height nor twice the visible head height is a
 valid substitute for measuring that path.
 
@@ -63,8 +76,9 @@ L_ideal(m,T) = c(T) / (2*f_target(m))
 ```
 
 The speed approximation is for dry air, restricted here to 0-40 C. Bore air
-can be warmer and wetter than room air; breath humidity and temperature
-gradients are not yet modeled.
+can be warmer and wetter than room air; humidity and temperature gradients are
+not yet modeled. A reported ambient temperature should not be treated as bore
+temperature unless measured there.
 
 At 20 C, F2 requires roughly **1.966 m of ideal open-open effective length**.
 This is a sanity check, not a prediction of physical length for the tapered,
@@ -191,8 +205,9 @@ python3 -m unittest -v test_acoustic_model
 
 To enable predictions, update [instrument_model.json](./instrument_model.json):
 
-1. Measure and enter all head segment lengths and internal width/depth endpoints.
-   Add segments for restrictions, gaskets and joints where appropriate.
+1. Directly measure and verify the estimated curved head turn centerline and
+   existing head dimensions; add segments for restrictions, gaskets and joints
+   where appropriate.
 2. Verify the ordered body dimensions, orientation and assembled lengths,
    including joint overlap. The current numeric body sections are hypotheses.
 3. Record every existing hole and the terminal outlet geometry. If the body
@@ -214,8 +229,11 @@ not automatically smoothed away.
 
 ## Recording and calibrating verified pitches
 
-Enter actual recordings in [pitch_measurements.csv](./pitch_measurements.csv).
-It intentionally contains only headers: no pitch observations are fabricated.
+Enter recordings with known fingering and mode in
+[pitch_measurements.csv](./pitch_measurements.csv). The 260 Hz report is kept
+in the model evidence, not this calibration CSV, because its fingering and
+bore-air temperature are unspecified and it is a head-only observation rather
+than a full-instrument measurement.
 
 | Field | Meaning |
 | --- | --- |

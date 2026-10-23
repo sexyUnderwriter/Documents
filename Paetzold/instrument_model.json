@@ -8,27 +8,29 @@
   "segments": [
     {
       "id": "head_limb_from_window",
-      "length_mm": null,
-      "width_start_mm": null,
-      "height_start_mm": null,
-      "width_end_mm": null,
-      "height_end_mm": null
+      "length_mm": 205.0,
+      "width_start_mm": 60.0,
+      "height_start_mm": 58.0,
+      "width_end_mm": 60.0,
+      "height_end_mm": 58.0
     },
     {
       "id": "head_turn",
-      "length_mm": null,
-      "width_start_mm": null,
-      "height_start_mm": null,
-      "width_end_mm": null,
-      "height_end_mm": null
+      "length_mm": 118.0,
+      "width_start_mm": 60.0,
+      "height_start_mm": 58.0,
+      "width_end_mm": 60.0,
+      "height_end_mm": 58.0,
+      "length_status": "photo-triangulated estimate",
+      "curve_span_mm": 135.0
     },
     {
       "id": "head_limb_to_body",
-      "length_mm": null,
-      "width_start_mm": null,
-      "height_start_mm": null,
-      "width_end_mm": null,
-      "height_end_mm": null
+      "length_mm": 250.0,
+      "width_start_mm": 60.0,
+      "height_start_mm": 58.0,
+      "width_end_mm": 60.0,
+      "height_end_mm": 58.0
     },
     {
       "id": "body_490_provisional_direction",
@@ -50,6 +52,32 @@
   "toneholes": [],
   "fingerings": {"all_closed": []},
   "evidence": [
+    {
+      "sources": ["Builder-reported head measurements"],
+      "status": "User-measured head geometry",
+      "limb_centerline_lengths_mm": {
+        "window_side_to_back_wall": 205.0,
+        "plenum_exit_to_back_wall": 250.0
+      },
+      "curve_span_mm": 135.0,
+      "passage_cross_section_mm": [60.0, 58.0],
+      "estimated_turn_centerline_length_mm": 118.0,
+      "turn_estimate_method": "Assume a 180-degree U-turn and interpret the 135 mm span as the outside-to-outside width. Centerline radius = (135 - 60) / 2 = 37.5 mm; arc length = pi * 37.5 = 117.8 mm, rounded to 118 mm.",
+      "note": "Photo-triangulated estimate only. The bend is not a verified semicircle, and the 135 mm span datum is assumed; confirm the curved centerline directly before treating the head geometry as verified."
+    },
+    {
+      "sources": ["Builder-reported blown pitch"],
+      "status": "User-reported sounding observation",
+      "frequency_hz": 260.0,
+      "ambient_temperature_f": 71.0,
+      "ambient_temperature_c": 21.7,
+      "relative_humidity_percent": 74.0,
+      "measurement_scope": "Head blown pitch; treated as head-only based on conversation context.",
+      "fingering_id": null,
+      "mode": 1,
+      "mode_assumption": "Fundamental register, not overblown, per user instruction.",
+      "note": "Fingering and whether temperature is ambient or bore-air temperature were not specified. Retained as an observation only; not used for calibration. The current sound-speed model does not correct for humidity."
+    },
     {
       "sources": ["trapezoid_4panel_box_assembly.obj", "isosceles_trapezoid_490x70x78mm.svg", "isosceles_trapezoid_490x74p6x66p6mm.svg"],
       "status": "CAD dimensions, not verified as-built",
@@ -90,7 +118,7 @@
       "status": "Photo observations and rough ruler estimates only",
       "visible_longitudinal_span_estimate_mm": [320.0, 340.0],
       "visible_return_channel_width_estimate_mm": [58.0, 63.0],
-      "note": "Divider and upper corner blocks indicate a folded passage. Perspective, ruler zero and occlusion prevent precise path or cross-section measurements; estimates are not solver inputs."
+      "note": "Divider and upper corner blocks indicate a folded passage. Perspective, ruler zero and occlusion prevent precise path or cross-section measurements; these photo estimates are not solver inputs."
     },
     {
       "sources": ["IMG_0731.png", "IMG_0850.png"],
