@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="332.8mm" height="158.63mm" viewBox="-14 -28 332.8 158.63">
+<title>Plywood blank - long sides square, front/back beveled by hand</title>
+<path d="M 0,0 L 135.625,0 L 135.625,19.38 L 169.175,19.38 L 169.175,0 L 304.8,0 L 304.8,95.63 L 0,95.63 Z" fill="#e5d6b5" stroke="#222" stroke-width="0.5" />
+<circle cx="125.375" cy="19.815" r="1.74" fill="white" stroke="#222" stroke-width="0.3" />
+<circle cx="179.9" cy="19.815" r="1.74" fill="white" stroke="#222" stroke-width="0.3" />
+<circle cx="125.375" cy="75.815" r="1.74" fill="white" stroke="#222" stroke-width="0.3" />
+<circle cx="179.9" cy="75.815" r="1.74" fill="white" stroke="#222" stroke-width="0.3" />
+<rect x="115.125" y="0" width="75.5" height="95.63" fill="none" stroke="blue" stroke-width="0.4" stroke-dasharray="1.5 1.5" />
+<text x="152.4" y="-18" text-anchor="middle" font-family="sans-serif" font-size="4.8">304.8 mm (12 in) x 95.63 mm; notches at FRONT</text>
+<text x="152.4" y="-7" text-anchor="middle" font-family="sans-serif" font-size="4">33.55 x 19.38 mm notches; holes centred in side strips</text>
+<text x="152.4" y="105.63" text-anchor="middle" font-family="sans-serif" font-size="3.8">Blue: 75.5 x 95.63 mm cap. Long sides square; bevel FRONT and BACK only</text>
+<text x="152.4" y="113.63" text-anchor="middle" font-family="sans-serif" font-size="3.6">Requested stock: 3/8-inch plywood (9.525 mm nominal)</text>
+<text x="152.4" y="121.63" text-anchor="middle" font-family="sans-serif" font-size="3.6">Print at 100% / actual size; no fit-to-page. Upload DXF for cutting.</text>
+</svg>

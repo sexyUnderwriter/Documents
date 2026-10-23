@@ -7,12 +7,12 @@ notch_width,33.55,mm,input,Notch opening width along X,Channel width stays equal
 notch_depth,19.38,mm,input,Distance inward along Y from the NEW cheek tips to the inner notch wall,Includes cheek_extension and the unchanged 10.15 mm instrument window; through-cut
 channel_end_from_front,82.63,mm,input,Distance along Y from the NEW cheek tips to the closed end of the channel,Includes notch_depth; channel position on the original plate is unchanged
 channel_depth,1.35,mm,input,Recess depth downward into Z from the channel face,Must be greater than 0 and less than thickness
-outer_bevel_angle,45,deg,input,Angle of each outside sloping face relative to the horizontal XY plane,Full-height bevel on four outside sides; top wider than bottom
+outer_bevel_angle,45,deg,input,Angle of the front and back outside sloping faces relative to the horizontal XY plane,Full-height bevel on the two short (front/back) sides only; long sides are vertical; top longer than bottom
 mount_hole_diameter,3.48,mm,input,Diameter of the four mounting holes drilled straight through along Z,Holes run the full thickness and must stay in solid material at the base
-mount_hole_left_offset,14.9,mm,input,Distance along X from the TOP left edge to the centre of the left pair of holes,Suggested placement: centred in the solid strip left of the channel at the base
-mount_hole_spacing_x,45.3,mm,input,Centre-to-centre distance along X between the left and right holes,Holes straddle the notch and channel
-mount_hole_front_offset,24.43,mm,input,Distance along Y from the NEW cheek tips to the centre of the front pair of holes,Hole locations are unchanged on the original plate; original offset was 15.2 mm
-mount_hole_spacing_y,56,mm,input,Centre-to-centre distance along Y between the front and back holes,Hole locations are unchanged; no longer symmetric about the extended overall outline
+mount_hole_left_offset,10.25,mm,input,Distance along X from the left edge to the centre of the left pair of holes,Centred in the full-height left strip: notch_left_offset / 2
+mount_hole_spacing_x,54.525,mm,input,Centre-to-centre distance along X between the left and right holes,Right holes centred in the right strip: top_width - right_land_at_top / 2 - mount_hole_left_offset
+mount_hole_front_offset,19.815,mm,input,Distance along Y from the cheek tips (top front edge) to the centre of the front pair of holes,Rows symmetric within the bottom footprint: bevel_inset_per_side + (base_length - mount_hole_spacing_y) / 2
+mount_hole_spacing_y,56,mm,input,Centre-to-centre distance along Y between the front and back holes,Unchanged spacing; rows now symmetric front/back
 channel_width,33.55,mm,calculated,Channel width along X; aligned with the notch,notch_width
 channel_length_beyond_notch,63.25,mm,calculated,Recess length from inner notch wall to closed channel end,channel_end_from_front - notch_depth
 channel_floor_z,7.88,mm,calculated,Height of the channel floor above the bottom,thickness - channel_depth
@@ -23,21 +23,41 @@ cheek_extension,9.23,mm,calculated,Minimum added Y length beyond the original fr
 window_length,10.15,mm,calculated,Unchanged instrument window length from the original front edge to the inner notch wall,notch_depth - cheek_extension
 original_top_length,86.4,mm,calculated,Original plate length before extending the two cheeks,top_length - cheek_extension
 top_center_y,-4.615,mm,calculated,Y centre of the new overall outline in the preserved original model coordinates,-cheek_extension / 2
-base_width,57.04,mm,calculated,Outside X envelope at bottom Z=0; does not imply a solid rectangle,top_width - 2 * bevel_inset_per_side
+base_width,75.5,mm,calculated,Outside X envelope at bottom Z=0; long sides are vertical,top_width (no long-side bevel)
 base_length,77.17,mm,calculated,Outside Y envelope at bottom Z=0 including the extended cheeks,top_length - 2 * bevel_inset_per_side
-mount_hole_right_offset,60.2,mm,calculated,Distance along X from the TOP left edge to the centre of the right pair of holes,mount_hole_left_offset + mount_hole_spacing_x
-mount_hole_back_offset,80.43,mm,calculated,Distance along Y from the NEW cheek tips to the centre of the back pair of holes,mount_hole_front_offset + mount_hole_spacing_y
-mount_hole_min_wall,3.86,mm,calculated,Thinnest material between any hole and the channel wall or the base outline at Z=0,Smallest hole-edge clearance to the channel side walls and the four base edges
+mount_hole_right_offset,64.775,mm,calculated,Distance along X from the left edge to the centre of the right pair of holes,mount_hole_left_offset + mount_hole_spacing_x
+mount_hole_back_offset,75.815,mm,calculated,Distance along Y from the cheek tips to the centre of the back pair of holes,mount_hole_front_offset + mount_hole_spacing_y
+mount_hole_min_wall,8.51,mm,calculated,Thinnest material between any hole and the windway wall or the outline at Z=0,Edge distances: 10.25 (left strip) / 10.725 (right strip) / 10.585 (front and back) minus hole radius 1.74
 split_base_thickness,7.88,mm,calculated,Thickness of the separate base; the shim sits on its flat top face,thickness - channel_depth (equals channel_floor_z)
-split_base_top_outline,72.8 x 92.93,mm,calculated,Outline of the base top face and of every shim bottom face,top_width - 2 * channel_depth by top_length - 2 * channel_depth
-windway_shim_set,1.0; 1.1; 1.2; 1.3; 1.35; 1.4; 1.5,mm,reference,Separate top-layer shims; the channel is a through-slot so shim thickness = windway height,Shim top outline = base top outline + 2 * shim thickness (continuous 45 degree slope); total cover height = split_base_thickness + shim thickness
-laser_shim_outline,72.8 x 92.93,mm,calculated,Common straight-sided laser-cut profile matching the split base top; no outer bevel,windway_shim_laser_outline.dxf; one closed U-shaped outline and four nominal 3.48 mm circles; XY coordinates preserved
+split_base_top_outline,75.5 x 92.93,mm,calculated,Outline of the 3D printed base top face and every printed shim bottom face,top_width by top_length - 2 * channel_depth (front/back bevel only)
+windway_shim_set,1.0; 1.1; 1.2; 1.3; 1.35; 1.4; 1.5,mm,reference,Separate top-layer shims; the channel is a through-slot so shim thickness = windway height,Shim top = 75.5 wide by (92.93 + 2 * shim thickness) long (front/back 45 degree slope continues; long sides vertical); total cover height = split_base_thickness + shim thickness
+flat_pattern_outline_rule,Widest top XY outline,,reference,Sheet-cut profiles use the full outside dimensions before the 45 degree outer bevel,Use top_width and top_length; long sides are vertical so width is exact; front/back still beveled by hand from the full length
+laser_shim_outline,75.5 x 95.63,mm,calculated,Common straight-sided laser-cut profile matching the widest 3D cover outline; no outer bevel,windway_shim_laser_outline.dxf; top_width by top_length; one closed U-shaped outline and four nominal 3.48 mm circles; original model XY coordinates preserved
 laser_dxf_format,AutoCAD 2000 (AC1015),,reference,Millimetre units are encoded as DXF $INSUNITS=4,Generated with a complete R2000 table and entity structure; audit with ezdxf reports no errors or fixes
-laser_shim_slot_length,81.28,mm,calculated,Through-slot length from the laser shim front edge to the unchanged channel end,channel_end_from_front - channel_depth / tan(outer_bevel_angle in degrees)
-laser_shim_back_land,11.65,mm,calculated,Material between the slot end and laser shim back edge,back_land_at_top - channel_depth / tan(outer_bevel_angle in degrees)
+laser_shim_slot_length,82.63,mm,calculated,Through-slot length from the widest top front edge to the unchanged channel end,channel_end_from_front
+laser_shim_back_land,13,mm,calculated,Material between the slot end and laser shim back edge,top_length - channel_end_from_front
 laser_shim_manufacturing,No bevel or kerf compensation,,reference,Use the same DXF for every stock thickness; windway height equals actual stock thickness,Units mm at 1:1 scale; supplier applies kerf compensation to achieve nominal dimensions; unlike printed shims the outer outline does not grow with thickness
+wide_blank_width,304.8,mm,input,Width of the separate plywood base blank for hand-finishing,12 inches; 3D print files remain unchanged; sheet-cut profiles use the widest top outline
+wide_blank_stock_thickness,9.525,mm,input,Requested nominal plywood thickness for the wide base blank,3/8 inch; select and measure actual available stock separately; DXF contains no thickness
+wide_blank_material,Plywood,,input,Material requested for the separate wide base blank,Confirm SendCutSend stock availability; no bevel or channel recess is included
+wide_blank_length,95.63,mm,calculated,Front-to-back length of the wide blank before hand-beveling,top_length; widest outline rather than inset split-plane dimensions
+wide_blank_notch_width,33.55,mm,calculated,Width of the short open-ended front window notch,notch_width
+wide_blank_notch_depth,19.38,mm,calculated,Depth of the short front window notch from the widest top front edge,notch_depth
+wide_blank_notch_center_x,152.4,mm,calculated,Notch centre from the wide blank left edge,wide_blank_width / 2
+wide_blank_hole_left_x,125.375,mm,calculated,Left mounting-hole centres from the blank left edge,Notch centre - 27.025 (hole offset from notch centre)
+wide_blank_hole_right_x,179.9,mm,calculated,Right mounting-hole centres from the blank left edge,wide_blank_hole_left_x + mount_hole_spacing_x
+wide_blank_hole_front_y,19.815,mm,calculated,Front mounting-hole centres from the widest top front edge,mount_hole_front_offset
+wide_blank_hole_back_y,75.815,mm,calculated,Back mounting-hole centres from the widest top front edge,wide_blank_hole_front_y + mount_hole_spacing_y
+wide_blank_cut_file,windway_cover_base_12in_plywood_blank.dxf,,reference,Separate 1:1 millimetre cutting file with one closed outline and four 3.48 mm holes,Short notch only; square inside corners retained for hand-finishing; CNC cutter leaves inside radii; confirm supplier accepts this geometry
+wide_blank_preview,windway_cover_base_12in_plywood_blank.svg,,reference,Annotated actual-size drawing of the wide plywood blank,SVG page 332.8 x 158.63 mm including annotation margins; one drawing unit equals 1 mm; print at 100 percent with no fit-to-page; upload DXF for cutting
+three_up_preview,windway_cover_base_12in_plywood_3up.svg,,reference,Annotated actual-size drawing of the three-cap plywood blank,SVG page 332.8 x 158.63 mm including annotation margins; part outline 304.8 x 95.63 mm; print at 100 percent with no fit-to-page; use large paper or tiled printing; upload DXF for cutting
+three_up_blank_file,windway_cover_base_12in_plywood_3up.dxf,,reference,12 in x 95.63 mm plywood blank with three centred front notches and 12 holes for cutting into thirds,Notch centres 50.8; 152.4; 254.0 mm from left; saw cuts at 101.6 and 203.2 mm; each cap trims to the widest 75.5 mm outline (13.525 mm left / 12.575 mm right allowance before saw kerf); hole offsets from notch centre -27.025 and +27.5 mm
+three_up_cap_count,3,,input,Number of complete cap patterns across the plywood board,One shared outside perimeter; saw divisions appear only in the preview
+three_up_pitch,101.6,mm,calculated,Width of each third before saw kerf,wide_blank_width / three_up_cap_count
+three_up_trim_left_from_notch_center,-37.275,mm,calculated,Left edge of each full-width cap relative to its notch centre,-(notch_left_offset + notch_width / 2)
+three_up_trim_right_from_notch_center,38.225,mm,calculated,Right edge of each full-width cap relative to its notch centre,top_width + three_up_trim_left_from_notch_center
 view_orientation,Channel face up with notch at front,,reference,Look straight down onto the channel face; front is the notched short edge; left is your left,X increases right; Y increases toward back; Z increases up
-coordinate_origin,Original plate centre in XY and bottom Z=0,,reference,Original channel and hole coordinates are preserved; extended overall outline is not centred on Y=0,Top left X is -top_width/2; NEW top front Y is top_center_y - top_length/2
-bevel_scope,Four outside sides only,,reference,Notch and channel interior walls are not beveled; front bevel is wholly beyond the original window,Full 9.23 mm cheek height beside the window at the channel side walls; outside X bevels remain
+coordinate_origin,Original plate centre in XY and bottom Z=0,,reference,Original channel coordinates are preserved; holes re-centred in side strips; extended overall outline is not centred on Y=0,Top left X is -top_width/2; NEW top front Y is top_center_y - top_length/2
+bevel_scope,Front and back outside sides only,,reference,Long sides are vertical (no bevel); notch and channel walls are not beveled; front bevel is wholly beyond the window,Full 9.23 mm cheek height beside the window
 update_policy,Edit input rows only,,reference,Calculated rows are current snapshots and must be recalculated when inputs change,This CSV does not automatically regenerate the OBJ or STL files
 validation_policy,Check geometry after every update,,reference,Require positive base dimensions and nonintersecting features plus a watertight mesh,Notch must fit within width; notch_depth < channel_end_from_front < top_length
