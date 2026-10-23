@@ -1,23 +1,35 @@
 parameter,value,unit,kind,definition,formula_or_rule
-top_width,78.3,mm,input,Outside width along X at the channel face,Preserve unless explicitly changed
-top_length,89.3,mm,input,Outside length along Y at the channel face,Preserve unless explicitly changed
+top_width,75.5,mm,input,Outside width along X at the channel face,Preserve unless explicitly changed
+top_length,95.63,mm,input,Overall outside length along Y including the extended cheek tips,Original plate length plus cheek_extension
 thickness,9.23,mm,input,Overall Z height from bottom to channel face,Bottom Z is 0; top Z is thickness
-notch_left_offset,22.8,mm,input,Distance along X from the TOP left edge to the notch left wall,Also sets the channel left wall
-notch_width,31.64,mm,input,Notch opening width along X,Channel width stays equal to notch_width
-notch_depth,9.57,mm,input,Distance inward along Y from the TOP front edge to the inner notch wall,Through-cut across the full thickness; not a Z depth
-channel_end_from_front,73.8,mm,input,Distance along Y from the TOP front edge to the closed end of the channel,Includes notch_depth; not additional length beyond the notch
-channel_depth,1.2,mm,input,Recess depth downward into Z from the channel face,Must be greater than 0 and less than thickness
+notch_left_offset,20.5,mm,input,Distance along X from the TOP left edge to the notch left wall,Also sets the channel left wall
+notch_width,33.55,mm,input,Notch opening width along X,Channel width stays equal to notch_width
+notch_depth,19.38,mm,input,Distance inward along Y from the NEW cheek tips to the inner notch wall,Includes cheek_extension and the unchanged 10.15 mm instrument window; through-cut
+channel_end_from_front,82.63,mm,input,Distance along Y from the NEW cheek tips to the closed end of the channel,Includes notch_depth; channel position on the original plate is unchanged
+channel_depth,1.35,mm,input,Recess depth downward into Z from the channel face,Must be greater than 0 and less than thickness
 outer_bevel_angle,45,deg,input,Angle of each outside sloping face relative to the horizontal XY plane,Full-height bevel on four outside sides; top wider than bottom
-channel_width,31.64,mm,calculated,Channel width along X; aligned with the notch,notch_width
-channel_length_beyond_notch,64.23,mm,calculated,Recess length from inner notch wall to closed channel end,channel_end_from_front - notch_depth
-channel_floor_z,8.03,mm,calculated,Height of the channel floor above the bottom,thickness - channel_depth
-back_land_at_top,15.5,mm,calculated,Full-thickness distance from channel end to TOP back edge,top_length - channel_end_from_front
-right_land_at_top,23.86,mm,calculated,Distance along X from notch right wall to TOP right edge,top_width - notch_left_offset - notch_width
+mount_hole_diameter,3.48,mm,input,Diameter of the four mounting holes drilled straight through along Z,Holes run the full thickness and must stay in solid material at the base
+mount_hole_left_offset,14.9,mm,input,Distance along X from the TOP left edge to the centre of the left pair of holes,Suggested placement: centred in the solid strip left of the channel at the base
+mount_hole_spacing_x,45.3,mm,input,Centre-to-centre distance along X between the left and right holes,Holes straddle the notch and channel
+mount_hole_front_offset,24.43,mm,input,Distance along Y from the NEW cheek tips to the centre of the front pair of holes,Hole locations are unchanged on the original plate; original offset was 15.2 mm
+mount_hole_spacing_y,56,mm,input,Centre-to-centre distance along Y between the front and back holes,Hole locations are unchanged; no longer symmetric about the extended overall outline
+channel_width,33.55,mm,calculated,Channel width along X; aligned with the notch,notch_width
+channel_length_beyond_notch,63.25,mm,calculated,Recess length from inner notch wall to closed channel end,channel_end_from_front - notch_depth
+channel_floor_z,7.88,mm,calculated,Height of the channel floor above the bottom,thickness - channel_depth
+back_land_at_top,13,mm,calculated,Full-thickness distance from channel end to TOP back edge,top_length - channel_end_from_front
+right_land_at_top,21.45,mm,calculated,Distance along X from notch right wall to TOP right edge,top_width - notch_left_offset - notch_width
 bevel_inset_per_side,9.23,mm,calculated,Horizontal inward offset of each bottom outside edge relative to its top edge,thickness / tan(outer_bevel_angle in degrees)
-base_width,59.84,mm,calculated,Outside X envelope at bottom Z=0; does not imply a solid rectangle,top_width - 2 * bevel_inset_per_side
-base_length,70.84,mm,calculated,Outside Y envelope at bottom Z=0; does not imply a solid rectangle,top_length - 2 * bevel_inset_per_side
+cheek_extension,9.23,mm,calculated,Minimum added Y length beyond the original front edge to move the entire front bevel past the window,bevel_inset_per_side
+window_length,10.15,mm,calculated,Unchanged instrument window length from the original front edge to the inner notch wall,notch_depth - cheek_extension
+original_top_length,86.4,mm,calculated,Original plate length before extending the two cheeks,top_length - cheek_extension
+top_center_y,-4.615,mm,calculated,Y centre of the new overall outline in the preserved original model coordinates,-cheek_extension / 2
+base_width,57.04,mm,calculated,Outside X envelope at bottom Z=0; does not imply a solid rectangle,top_width - 2 * bevel_inset_per_side
+base_length,77.17,mm,calculated,Outside Y envelope at bottom Z=0 including the extended cheeks,top_length - 2 * bevel_inset_per_side
+mount_hole_right_offset,60.2,mm,calculated,Distance along X from the TOP left edge to the centre of the right pair of holes,mount_hole_left_offset + mount_hole_spacing_x
+mount_hole_back_offset,80.43,mm,calculated,Distance along Y from the NEW cheek tips to the centre of the back pair of holes,mount_hole_front_offset + mount_hole_spacing_y
+mount_hole_min_wall,3.86,mm,calculated,Thinnest material between any hole and the channel wall or the base outline at Z=0,Smallest hole-edge clearance to the channel side walls and the four base edges
 view_orientation,Channel face up with notch at front,,reference,Look straight down onto the channel face; front is the notched short edge; left is your left,X increases right; Y increases toward back; Z increases up
-coordinate_origin,Centered XY envelope and bottom Z=0,,reference,Exported meshes use centered X and Y rather than a front-left origin,Top left X is -top_width/2; top front Y is -top_length/2
-bevel_scope,Four outside sides only,,reference,Notch and channel interior walls are not beveled,Outside bevel intersects the notch opening at lower Z
+coordinate_origin,Original plate centre in XY and bottom Z=0,,reference,Original channel and hole coordinates are preserved; extended overall outline is not centred on Y=0,Top left X is -top_width/2; NEW top front Y is top_center_y - top_length/2
+bevel_scope,Four outside sides only,,reference,Notch and channel interior walls are not beveled; front bevel is wholly beyond the original window,Full 9.23 mm cheek height beside the window at the channel side walls; outside X bevels remain
 update_policy,Edit input rows only,,reference,Calculated rows are current snapshots and must be recalculated when inputs change,This CSV does not automatically regenerate the OBJ or STL files
 validation_policy,Check geometry after every update,,reference,Require positive base dimensions and nonintersecting features plus a watertight mesh,Notch must fit within width; notch_depth < channel_end_from_front < top_length
