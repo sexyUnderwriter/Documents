@@ -28,6 +28,9 @@ base_length,77.17,mm,calculated,Outside Y envelope at bottom Z=0 including the e
 mount_hole_right_offset,60.2,mm,calculated,Distance along X from the TOP left edge to the centre of the right pair of holes,mount_hole_left_offset + mount_hole_spacing_x
 mount_hole_back_offset,80.43,mm,calculated,Distance along Y from the NEW cheek tips to the centre of the back pair of holes,mount_hole_front_offset + mount_hole_spacing_y
 mount_hole_min_wall,3.86,mm,calculated,Thinnest material between any hole and the channel wall or the base outline at Z=0,Smallest hole-edge clearance to the channel side walls and the four base edges
+split_base_thickness,7.88,mm,calculated,Thickness of the separate base; the shim sits on its flat top face,thickness - channel_depth (equals channel_floor_z)
+split_base_top_outline,72.8 x 92.93,mm,calculated,Outline of the base top face and of every shim bottom face,top_width - 2 * channel_depth by top_length - 2 * channel_depth
+windway_shim_set,1.0; 1.1; 1.2; 1.3; 1.35; 1.4; 1.5,mm,reference,Separate top-layer shims; the channel is a through-slot so shim thickness = windway height,Shim top outline = base top outline + 2 * shim thickness (continuous 45 degree slope); total cover height = split_base_thickness + shim thickness
 view_orientation,Channel face up with notch at front,,reference,Look straight down onto the channel face; front is the notched short edge; left is your left,X increases right; Y increases toward back; Z increases up
 coordinate_origin,Original plate centre in XY and bottom Z=0,,reference,Original channel and hole coordinates are preserved; extended overall outline is not centred on Y=0,Top left X is -top_width/2; NEW top front Y is top_center_y - top_length/2
 bevel_scope,Four outside sides only,,reference,Notch and channel interior walls are not beveled; front bevel is wholly beyond the original window,Full 9.23 mm cheek height beside the window at the channel side walls; outside X bevels remain
