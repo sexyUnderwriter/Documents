@@ -11,13 +11,8 @@
 !.github/copilot-instructions.md
 !tonnetz-progressions-modern-poetry-guide.md
 
-# Paetzold acoustic research model and measurement record
-!Paetzold/
-!Paetzold/acoustic_model.py
-!Paetzold/test_acoustic_model.py
-!Paetzold/instrument_model.json
-!Paetzold/pitch_measurements.csv
-!Paetzold/ACOUSTIC_MODEL.md
+# The Paetzold contrabass recorder project moved to its own repository
+# (~/Projects/paetzold-contrabass); nothing under Paetzold/ is tracked here.
 
 # House-history research profile
 !Home History/
